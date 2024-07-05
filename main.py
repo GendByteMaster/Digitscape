@@ -1,12 +1,15 @@
-import ttkbootstrap as ttk
+import customtkinter as ctk
 from DigitscapeAnalyzer import DigitscapeAnalyzer
 from DigitscapeGUI import DigitscapeGUI
+import matplotlib
+
+matplotlib.use("TkAgg")
 
 if __name__ == "__main__":
-    try:
-        root = ttk.Window(title="Digitscape Analyzer", size=(800, 600), resizable=(False, False))
-        analyzer = DigitscapeAnalyzer()
-        gui = DigitscapeGUI(root, analyzer)
-        root.mainloop()
-    except Exception as e:
-        print(f"Произошла ошибка: {e}")
+    ctk.set_appearance_mode("dark")  # Установите режим "dark" или "light"
+    ctk.set_default_color_theme("blue")  # Установите тему "blue" или другую доступную тему
+
+    root = ctk.CTk()
+    analyzer = DigitscapeAnalyzer()
+    app = DigitscapeGUI(root, analyzer)
+    root.mainloop()

@@ -1,115 +1,77 @@
-import os
-import pandas as pd
-import threading
+import customtkinter as ctk
 from tkinter import filedialog, messagebox
-from tkinter import *
-from tkinter import ttk
+import pandas as pd
+
 
 class DigitscapeGUI:
-    def __init__(self, master, analyzer):
-        self.master = master
+    def __init__(self, root, analyzer):
+        self.root = root
+        self.root.geometry("700x500")
         self.analyzer = analyzer
+        self.root.title("Digitscape Analyzer")
         self.create_widgets()
-        self.bind_keys()
 
     def create_widgets(self):
-        main_frame = ttk.Frame(self.master, padding="20 20 20 20")
-        main_frame.pack(fill=BOTH, expand=YES)
+        # Main frame
+        main_frame = ctk.CTkFrame(self.root)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        title_label = ttk.Label(main_frame, text="Digitscape Analyzer", font=("Helvetica", 18, "bold"))
-        title_label.pack(pady=(0, 20))
+        # File selection
+        file_frame = ctk.CTkFrame(main_frame)
+        file_frame.pack(fill="x", pady=10)
+        self.file_label = ctk.CTkLabel(file_frame, text="Выберите файл с данными:")
+        self.file_label.pack(side="left")
+        self.file_entry = ctk.CTkEntry(file_frame, width=400)
+        self.file_entry.pack(side="left", padx=5)
+        self.file_button = ctk.CTkButton(file_frame, text="Выбрать файл", command=self.select_file)
+        self.file_button.pack(side="left")
 
-        file_frame = ttk.Frame(main_frame)
-        file_frame.pack(fill=X, pady=10)
+        # Column selection
+        column_frame = ctk.CTkFrame(main_frame)
+        column_frame.pack(fill="x", pady=10)
+        self.column_label = ctk.CTkLabel(column_frame, text="Выберите столбец для анализа:")
+        self.column_label.pack(side="left")
+        self.column_entry = ctk.CTkEntry(column_frame, width=400)
+        self.column_entry.pack(side="left", padx=5)
 
-        self.file_label = ttk.Label(file_frame, text="Файл не выбран", font=("Helvetica", 10))
-        self.file_label.pack(side=LEFT, expand=YES)
+        # Analyze button
+        self.analyze_button = ctk.CTkButton(main_frame, text="Анализировать", command=self.run_analysis)
+        self.analyze_button.pack(pady=10)
 
-        select_file_button = ttk.Button(file_frame, text="Выбрать файл", command=self.select_file,
-                                        style="Outline.TButton")
-        select_file_button.pack(side=RIGHT)
+        # Results area
+        self.results_text = ctk.CTkTextbox(main_frame, height=300, width=600)
+        self.results_text.pack(pady=10)
 
-        self.column_listbox = Listbox(main_frame, selectmode=MULTIPLE)
-        self.column_listbox.pack(fill=X, pady=10)
-
-        self.progress_bar = ttk.Progressbar(main_frame, mode="indeterminate",
-                                            style="success.Striped.Horizontal.TProgressbar")
-        self.progress_bar.pack(fill=X, pady=20)
-
-        self.run_analysis_button = ttk.Button(main_frame, text="Запустить анализ", command=self.run_analysis,
-                                              style="success.TButton")
-        self.run_analysis_button.pack(pady=10)
-
-        self.view_report_button = ttk.Button(main_frame, text="Просмотреть отчет", command=self.view_report,
-                                             style="info.TButton", state="disabled")
-        self.view_report_button.pack(pady=10)
-
-        self.status_label = ttk.Label(main_frame, text="Готов к работе", font=("Helvetica", 10))
-        self.status_label.pack(pady=(20, 0))
-
-    def bind_keys(self):
-        self.master.bind('<Control-o>', self.select_file)
-        self.master.bind('<Control-r>', self.run_analysis)
-        self.master.bind('<Control-v>', self.view_report)
-
-        self.master.bind('<Escape>', self.exit_program)
-
-    def exit_program(self, event=None):
-        if messagebox.askokcancel("Выход", "Вы уверены, что хотите выйти из программы?"):
-            self.master.quit()
-    def select_file(self, event=None):
+    def select_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
         if file_path:
-            self.analyzer.file_path = file_path
-            self.file_label.config(text=f"Выбран: {os.path.basename(file_path)}")
-            self.status_label.config(text="Файл выбран. Готов к анализу.")
-            self.load_columns()
+            self.file_entry.delete(0, "end")
+            self.file_entry.insert(0, file_path)
 
-    def load_columns(self):
+            # Получаем имена столбцов из Excel-файла
+            try:
+                df = pd.read_excel(file_path, nrows=0)
+                column_names = df.columns.tolist()
+                self.column_entry.delete(0, "end")
+                self.column_entry.insert(0, column_names[0])  # Вставляем первый столбец по умолчанию
+            except Exception as e:
+                messagebox.showwarning("Предупреждение", f"Не удалось прочитать имена столбцов из файла: {str(e)}")
+
+    def run_analysis(self):
         try:
-            df = pd.read_excel(self.analyzer.file_path)
-            self.column_listbox.delete(0, END)
-            for column in df.columns:
-                self.column_listbox.insert(END, column)
+            file_path = self.file_entry.get()
+            column_name = self.column_entry.get()
+
+            if not file_path or not column_name:
+                raise ValueError("Выберите файл и укажите столбец для анализа")
+
+            self.analyzer.load_data(file_path, column_name)
+            self.analyzer.run_analysis()
+            report = self.analyzer.generate_report()
+
+            self.results_text.delete("1.0", "end")
+            self.results_text.insert("end", report)
+
+            messagebox.showinfo("Анализ завершен", "Анализ успешно завершен. Результаты отображены в окне приложения.")
         except Exception as e:
-            messagebox.showerror("Ошибка", f"Не удалось загрузить столбцы: {e}")
-
-    def run_analysis(self, event=None):
-        if not self.analyzer.file_path:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберите файл перед запуском анализа.")
-            return
-
-        selected_columns = [self.column_listbox.get(i) for i in self.column_listbox.curselection()]
-        if not selected_columns:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберите хотя бы один столбец для анализа.")
-            return
-
-        self.run_analysis_button.config(state="disabled")
-        self.progress_bar.start(10)
-        self.status_label.config(text="Выполняется анализ...")
-
-        thread = threading.Thread(target=self.run_analysis_thread, args=(selected_columns,))
-        thread.start()
-
-    def run_analysis_thread(self, selected_columns):
-        try:
-            self.analyzer.run_analysis(selected_columns)
-            self.master.after(0, self.analysis_complete)
-        except Exception as e:
-            messagebox.showerror("Ошибка", f"Произошла ошибка при выполнении анализа: {e}")
-
-    def analysis_complete(self):
-        self.run_analysis_button.config(state="normal")
-        self.progress_bar.stop()
-        self.status_label.config(text="Анализ завершен")
-        self.view_report_button.config(state="normal")
-
-    def view_report(self, event=None):
-        if not self.analyzer.file_path:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберите файл перед просмотром отчета.")
-            return
-
-        try:
-            self.analyzer.view_report()
-        except Exception as e:
-            messagebox.showerror("Ошибка", f"Произошла ошибка при просмотре отчета: {e}")
+            messagebox.showerror("Ошибка", f"Произошла ошибка при выполнении анализа: {str(e)}")
